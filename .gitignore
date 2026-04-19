@@ -1,0 +1,24 @@
+# Binaries
+dist/
+ronit-sh
+ronit-sh-ctl
+
+# SSH host keys (never commit)
+.ssh/
+
+# SQLite databases
+*.db
+*.db-wal
+*.db-shm
+
+# Secrets and env files
+.env
+*.env
+
+# Editor artifacts
+.DS_Store
+*.swp
+*~
+
+# Go test cache
+/tmp/

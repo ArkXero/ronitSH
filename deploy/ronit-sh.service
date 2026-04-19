@@ -1,0 +1,25 @@
+[Unit]
+Description=ronit.sh SSH portfolio server
+Documentation=https://github.com/ArkXero/termfolio
+After=network.target
+
+[Service]
+Type=simple
+User=termfolio
+Group=termfolio
+ExecStart=/opt/termfolio/bin/ronit-sh
+Environment=RONIT_ENV=production
+WorkingDirectory=/var/lib/termfolio
+Restart=on-failure
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+# Security hardening
+NoNewPrivileges=yes
+ProtectSystem=full
+ProtectHome=yes
+PrivateTmp=yes
+
+[Install]
+WantedBy=multi-user.target

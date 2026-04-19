@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ronit.sh</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: #0d1117;
+      color: #c9d1d9;
+      font-family: 'Courier New', Courier, monospace;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem;
+    }
+    .container {
+      max-width: 600px;
+      text-align: center;
+    }
+    pre {
+      color: #1A8A9A;
+      font-size: 1.1rem;
+      line-height: 1.2;
+      margin-bottom: 2rem;
+    }
+    h1 {
+      color: #2BBDD4;
+      font-size: 1.4rem;
+      margin-bottom: 1rem;
+    }
+    p {
+      color: #8b949e;
+      margin-bottom: 1.5rem;
+      line-height: 1.6;
+    }
+    .command {
+      display: inline-block;
+      background: #161b22;
+      border: 1px solid #1A8A9A;
+      border-radius: 4px;
+      padding: 0.8rem 1.5rem;
+      font-size: 1.1rem;
+      color: #2BBDD4;
+      margin-bottom: 2rem;
+      cursor: text;
+      user-select: all;
+    }
+    .note {
+      font-size: 0.85rem;
+      color: #555;
+    }
+    a { color: #1A8A9A; text-decoration: none; }
+    a:hover { color: #2BBDD4; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <pre>
+ _ __ ___  _ __ (_) |_
+| '__/ _ \| '_ \| | __|
+| | | (_) | | | | | |_
+|_|  \___/|_| |_|_|\__|</pre>
+
+    <h1>This portfolio lives in the terminal.</h1>
+
+    <p>Open a terminal and run:</p>
+
+    <div class="command">ssh -p 422 ronit.sh</div>
+
+    <p>
+      No browser required. You will land directly in an interactive
+      TUI built with Go and Bubble Tea.
+    </p>
+
+    <!-- asciinema demo goes here -->
+    <!-- <script src="https://asciinema.org/a/XXXXX.js" id="asciicast-XXXXX" async></script> -->
+
+    <p class="note">
+      <a href="https://github.com/ArkXero/termfolio">source code</a>
+      &nbsp;&middot;&nbsp;
+      built by <a href="https://github.com/ArkXero">Ronit Singh</a>
+    </p>
+  </div>
+</body>
+</html>
