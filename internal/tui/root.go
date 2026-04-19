@@ -53,14 +53,14 @@ type RootModel struct {
 	showHelp    bool
 
 	// Sub-models.
-	banner   BannerModel
-	menu     MenuModel
-	about    AboutModel
-	projects ProjectsModel
-	now      NowModel
-	posts    PostsModel
+	banner    BannerModel
+	menu      MenuModel
+	about     AboutModel
+	projects  ProjectsModel
+	now       NowModel
+	posts     PostsModel
 	guestbook GuestbookModel
-	contact  ContactModel
+	contact   ContactModel
 }
 
 // NewRootModel constructs the root model for a new SSH session.
@@ -104,26 +104,25 @@ func (m RootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if key.Matches(msg, m.keys.HardQuit) {
 			return m, tea.Quit
 		}
-		// Global: toggle help overlay (except on banner).
+		// Global: toggle help overlay (not on banner).
 		if m.currentView != ViewBanner && key.Matches(msg, m.keys.Help) {
 			m.showHelp = !m.showHelp
 			return m, nil
 		}
-		// Global: back from any content view goes to menu.
+		// Global: esc/q from a content view returns to menu.
 		if m.currentView != ViewBanner && m.currentView != ViewMenu && !m.showHelp {
 			if key.Matches(msg, m.keys.Back) {
 				m.currentView = ViewMenu
 				return m, nil
 			}
 		}
-		// If help overlay is open, close it on any key except help toggle.
+		// Any key closes the help overlay.
 		if m.showHelp {
 			m.showHelp = false
 			return m, nil
 		}
 	}
 
-	// Delegate to the active sub-model.
 	return m.delegateUpdate(msg)
 }
 
@@ -150,20 +149,29 @@ func (m RootModel) delegateUpdate(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, cmd
 }
 
+// View renders the current state of the application.
+// Layout depends on terminal width:
+//
+//	< 40 cols  : error message
+//	< 80 cols  : narrow -- menu or top-bar + content
+//	< 120 cols : standard -- sidebar (25) + content
+//	>= 120 cols: wide -- sidebar (25) + content + preview (30)
 func (m RootModel) View() tea.View {
 	var content string
 
-	if m.cfg.Width < 40 {
-		msg := theme.SubtleStyle.Render("terminal too narrow (need at least 40 cols)")
-		content = lipgloss.Place(m.cfg.Width, m.cfg.Height, lipgloss.Center, lipgloss.Center, msg)
-	} else if m.currentView == ViewBanner {
+	switch {
+	case m.cfg.Width < 40:
+		content = m.tooNarrowView()
+	case m.currentView == ViewBanner:
 		content = m.banner.View()
-	} else if m.showHelp {
+	case m.showHelp:
 		content = m.helpView()
-	} else if m.cfg.Width < 80 {
-		content = m.narrowView(m.activeContentView())
-	} else {
-		content = m.standardView(m.activeContentView())
+	case m.cfg.Width < 80:
+		content = m.narrowView()
+	case m.cfg.Width >= 120:
+		content = m.wideView()
+	default:
+		content = m.standardView()
 	}
 
 	v := tea.NewView(content)
@@ -171,6 +179,8 @@ func (m RootModel) View() tea.View {
 	return v
 }
 
+// activeContentView returns the rendered string for the current non-menu section.
+// Returns an empty string when in ViewMenu (callers handle that case separately).
 func (m RootModel) activeContentView() string {
 	switch m.currentView {
 	case ViewAbout:
@@ -190,45 +200,186 @@ func (m RootModel) activeContentView() string {
 	}
 }
 
-func (m RootModel) standardView(content string) string {
-	sidebarHeight := m.cfg.Height - 2 // leave room for footer
-	sidebar := lipgloss.NewStyle().
+// menuWelcomeView is shown in the content pane when the user is at the main menu.
+func (m RootModel) menuWelcomeView() string {
+	var b strings.Builder
+	b.WriteString(theme.TitleStyle.Render("ronit.sh") + "\n\n")
+	b.WriteString("Sophomore at TJHSST.\n")
+	b.WriteString("Building civic tech and learning systems programming.\n\n")
+	b.WriteString(theme.SubtleStyle.Render("Navigate with j/k, select with enter, ? for help."))
+	return b.String()
+}
+
+// tooNarrowView is shown when the terminal is less than 40 columns wide.
+func (m RootModel) tooNarrowView() string {
+	msg := theme.SubtleStyle.Render("terminal too narrow\n(need >= 40 cols)")
+	return lipgloss.Place(m.cfg.Width, m.cfg.Height, lipgloss.Center, lipgloss.Center, msg)
+}
+
+// standardView renders the 2-pane layout: sidebar (25) + content.
+// Used when 80 <= width < 120.
+func (m RootModel) standardView() string {
+	bodyHeight := m.cfg.Height - 1 // one line for footer
+
+	sidebarStyle := lipgloss.NewStyle().
 		Width(theme.SidebarWidth).
-		Height(sidebarHeight).
+		Height(bodyHeight).
 		BorderRight(true).
 		BorderStyle(lipgloss.NormalBorder()).
 		BorderForeground(theme.PrimaryDark).
-		PaddingRight(1).
-		Render(m.menu.View())
+		PaddingTop(1).
+		PaddingRight(1)
 
-	contentWidth := m.cfg.Width - theme.SidebarWidth - 3
-	contentPane := lipgloss.NewStyle().
+	contentWidth := m.cfg.Width - theme.SidebarWidth - 2 // 2 for border + gap
+	contentStyle := lipgloss.NewStyle().
 		Width(contentWidth).
-		Height(sidebarHeight).
+		Height(bodyHeight).
 		PaddingLeft(2).
-		Render(content)
+		PaddingTop(1)
 
-	body := lipgloss.JoinHorizontal(lipgloss.Top, sidebar, contentPane)
-	footer := theme.SubtleStyle.
+	var contentStr string
+	if m.currentView == ViewMenu {
+		contentStr = m.menuWelcomeView()
+	} else {
+		contentStr = m.activeContentView()
+	}
+
+	body := lipgloss.JoinHorizontal(lipgloss.Top,
+		sidebarStyle.Render(m.menu.View()),
+		contentStyle.Render(contentStr),
+	)
+
+	footer := lipgloss.NewStyle().
 		Width(m.cfg.Width).
+		Foreground(theme.Subtle).
 		Render(m.keys.ShortHelp())
 
 	return lipgloss.JoinVertical(lipgloss.Left, body, footer)
 }
 
-func (m RootModel) narrowView(content string) string {
-	nav := theme.SubtleStyle.Render(m.currentViewName() + " -- q to go back")
-	footer := theme.SubtleStyle.Width(m.cfg.Width).Render(m.keys.ShortHelp())
-	body := lipgloss.NewStyle().
+// wideView renders the 3-pane layout: sidebar (25) + content + preview (30).
+// Used when width >= 120.
+func (m RootModel) wideView() string {
+	bodyHeight := m.cfg.Height - 1
+
+	sidebarStyle := lipgloss.NewStyle().
+		Width(theme.SidebarWidth).
+		Height(bodyHeight).
+		BorderRight(true).
+		BorderStyle(lipgloss.NormalBorder()).
+		BorderForeground(theme.PrimaryDark).
+		PaddingTop(1).
+		PaddingRight(1)
+
+	previewWidth := theme.PreviewWidth
+	contentWidth := m.cfg.Width - theme.SidebarWidth - previewWidth - 4
+
+	contentStyle := lipgloss.NewStyle().
+		Width(contentWidth).
+		Height(bodyHeight).
+		PaddingLeft(2).
+		PaddingTop(1)
+
+	previewStyle := lipgloss.NewStyle().
+		Width(previewWidth).
+		Height(bodyHeight).
+		BorderLeft(true).
+		BorderStyle(lipgloss.NormalBorder()).
+		BorderForeground(theme.PrimaryDark).
+		PaddingLeft(2).
+		PaddingTop(1)
+
+	var contentStr string
+	if m.currentView == ViewMenu {
+		contentStr = m.menuWelcomeView()
+	} else {
+		contentStr = m.activeContentView()
+	}
+
+	body := lipgloss.JoinHorizontal(lipgloss.Top,
+		sidebarStyle.Render(m.menu.View()),
+		contentStyle.Render(contentStr),
+		previewStyle.Render(m.previewView()),
+	)
+
+	footer := lipgloss.NewStyle().
 		Width(m.cfg.Width).
-		Height(m.cfg.Height - 3).
-		Render(content)
-	return lipgloss.JoinVertical(lipgloss.Left, nav, body, footer)
+		Foreground(theme.Subtle).
+		Render(m.keys.ShortHelp())
+
+	return lipgloss.JoinVertical(lipgloss.Left, body, footer)
+}
+
+// previewView returns content for the right preview pane in wide mode.
+// Shows section hints based on what is currently selected in the menu.
+func (m RootModel) previewView() string {
+	previews := map[View]string{
+		ViewAbout:     "Background, skills,\nand education.",
+		ViewProjects:  "Civic Cycle, Botball\n2026, and this site.",
+		ViewNow:       "What I am working\non this month.",
+		ViewPosts:     "Writing and notes\nfrom building things.",
+		ViewGuestbook: "Leave a message.\nRead what others wrote.",
+		ViewContact:   "Email, GitHub,\nand LinkedIn.",
+		ViewHelp:      "All keyboard\nshortcuts.",
+		ViewQuit:      "See you next time.",
+	}
+
+	cursor := m.menu.Cursor()
+	selected := menuItems[cursor].view
+	hint, ok := previews[selected]
+	if !ok {
+		hint = ""
+	}
+
+	var b strings.Builder
+	b.WriteString(theme.SubtleStyle.Render("preview") + "\n\n")
+	b.WriteString(theme.ActiveItemStyle.Render(menuItems[cursor].label) + "\n\n")
+	b.WriteString(hint)
+	return b.String()
+}
+
+// narrowView renders the single-pane layout used when width < 80.
+// In ViewMenu it shows the menu full-screen; otherwise shows the content with a back hint.
+func (m RootModel) narrowView() string {
+	footer := lipgloss.NewStyle().
+		Width(m.cfg.Width).
+		Foreground(theme.Subtle).
+		Render(m.keys.ShortHelp())
+	footerHeight := 1
+	bodyHeight := m.cfg.Height - footerHeight
+
+	if m.currentView == ViewMenu {
+		// Full-screen menu -- no sidebar needed.
+		menuStyle := lipgloss.NewStyle().
+			Width(m.cfg.Width).
+			Height(bodyHeight).
+			PaddingTop(2).
+			PaddingLeft(2)
+		return lipgloss.JoinVertical(lipgloss.Left,
+			menuStyle.Render(m.menu.View()),
+			footer,
+		)
+	}
+
+	// Content view: show section name at top, content, footer.
+	header := theme.SubtleStyle.Render("< " + m.currentViewName() + "  (q: back)")
+	headerHeight := 1
+	contentStyle := lipgloss.NewStyle().
+		Width(m.cfg.Width).
+		Height(bodyHeight - headerHeight).
+		PaddingLeft(1).
+		PaddingTop(1)
+
+	return lipgloss.JoinVertical(lipgloss.Left,
+		header,
+		contentStyle.Render(m.activeContentView()),
+		footer,
+	)
 }
 
 func (m RootModel) helpView() string {
 	var b strings.Builder
-	b.WriteString(theme.SectionTitleStyle.Render("KEYBINDINGS") + "\n\n")
+	b.WriteString(theme.SectionTitleStyle.Render("keybindings") + "\n\n")
 	rows := [][]string{
 		{"j / k", "navigate up / down"},
 		{"h / l", "navigate panels"},

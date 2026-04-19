@@ -27,9 +27,12 @@ var menuItems = []MenuItem{
 
 // MenuModel is the main navigation menu.
 type MenuModel struct {
-	cursor int
+	cursor int // index into menuItems
 	keys   KeyMap
 }
+
+// Cursor returns the index of the currently highlighted menu item.
+func (m MenuModel) Cursor() int { return m.cursor }
 
 func newMenuModel(keys KeyMap) MenuModel {
 	return MenuModel{
