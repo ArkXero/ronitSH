@@ -6,6 +6,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"charm.land/bubbles/v2/key"
 	"charm.land/lipgloss/v2"
+	"github.com/ArkXero/termfolio/internal/content"
 	"github.com/ArkXero/termfolio/internal/theme"
 )
 
@@ -64,7 +65,8 @@ type RootModel struct {
 }
 
 // NewRootModel constructs the root model for a new SSH session.
-func NewRootModel(cfg Config) RootModel {
+// loader is shared across sessions (read-only after init).
+func NewRootModel(cfg Config, loader *content.Loader) RootModel {
 	keys := DefaultKeyMap()
 	return RootModel{
 		cfg:         cfg,
@@ -72,10 +74,10 @@ func NewRootModel(cfg Config) RootModel {
 		keys:        keys,
 		banner:      newBannerModel(cfg.Width, cfg.Height),
 		menu:        newMenuModel(keys),
-		about:       newAboutModel(),
-		projects:    newProjectsModel(),
-		now:         newNowModel(),
-		posts:       newPostsModel(),
+		about:       newAboutModel(loader),
+		projects:    newProjectsModel(loader),
+		now:         newNowModel(loader),
+		posts:       newPostsModel(loader),
 		guestbook:   newGuestbookModel(),
 		contact:     newContactModel(),
 	}
@@ -92,7 +94,14 @@ func (m RootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.cfg.Height = msg.Height
 		m.banner.width = msg.Width
 		m.banner.height = msg.Height
-		return m, nil
+		// Forward to sub-models that manage viewports.
+		// Use a batch so all models get the resize concurrently.
+		var cmds []tea.Cmd
+		m.about, _ = m.about.Update(msg)
+		m.now, _ = m.now.Update(msg)
+		m.projects, _ = m.projects.Update(msg)
+		m.posts, _ = m.posts.Update(msg)
+		return m, tea.Batch(cmds...)
 
 	case navigateMsg:
 		m.currentView = msg.to

@@ -1,7 +1,7 @@
 # Binaries
 dist/
-ronit-sh
-ronit-sh-ctl
+/ronit-sh
+/ronit-sh-ctl
 
 # SSH host keys (never commit)
 .ssh/

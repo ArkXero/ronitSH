@@ -18,15 +18,17 @@ import (
 	"charm.land/wish/v2/logging"
 	"github.com/charmbracelet/ssh"
 
+	termfolio "github.com/ArkXero/termfolio"
+	"github.com/ArkXero/termfolio/internal/content"
 	"github.com/ArkXero/termfolio/internal/tui"
 )
 
 const (
-	devHost    = "127.0.0.1"
-	devPort    = "23234"
-	prodHost   = "0.0.0.0"
-	prodPort   = "422"
-	devKeyPath = ".ssh/id_ed25519"
+	devHost     = "127.0.0.1"
+	devPort     = "23234"
+	prodHost    = "0.0.0.0"
+	prodPort    = "422"
+	devKeyPath  = ".ssh/id_ed25519"
 	prodKeyPath = "/var/lib/termfolio/id_ed25519"
 )
 
@@ -45,11 +47,22 @@ func main() {
 		}
 	}
 
+	// Load all embedded content once at startup.
+	loader, err := content.NewLoader(termfolio.ContentFS)
+	if err != nil {
+		log.Error("failed to load content", "error", err)
+		os.Exit(1)
+	}
+	log.Info("content loaded",
+		"projects", len(loader.Projects),
+		"posts", len(loader.Posts),
+	)
+
 	s, err := wish.NewServer(
 		wish.WithAddress(net.JoinHostPort(host, port)),
 		wish.WithHostKeyPath(keyPath),
 		wish.WithMiddleware(
-			bubbletea.Middleware(teaHandler),
+			bubbletea.Middleware(makeTeaHandler(loader)),
 			activeterm.Middleware(),
 			logging.Middleware(),
 		),
@@ -82,17 +95,20 @@ func main() {
 	}
 }
 
-// teaHandler constructs a new root model for each SSH session.
-func teaHandler(sess ssh.Session) (tea.Model, []tea.ProgramOption) {
-	pty, _, ok := sess.Pty()
-	if !ok {
-		return nil, nil
+// makeTeaHandler returns a Wish bubbletea handler that closes over the shared
+// content loader. A new root model is created per SSH session.
+func makeTeaHandler(loader *content.Loader) bubbletea.Handler {
+	return func(sess ssh.Session) (tea.Model, []tea.ProgramOption) {
+		pty, _, ok := sess.Pty()
+		if !ok {
+			return nil, nil
+		}
+		cfg := tui.Config{
+			Term:   pty.Term,
+			Width:  pty.Window.Width,
+			Height: pty.Window.Height,
+		}
+		m := tui.NewRootModel(cfg, loader)
+		return m, nil
 	}
-	cfg := tui.Config{
-		Term:   pty.Term,
-		Width:  pty.Window.Width,
-		Height: pty.Window.Height,
-	}
-	m := tui.NewRootModel(cfg)
-	return m, nil
 }
