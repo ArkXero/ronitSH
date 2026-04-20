@@ -58,9 +58,9 @@ type Config struct {
 }
 
 // bodyHeight returns the number of rows available for the main body content,
-// accounting for the header bar, deco footer, and the keybinding strip.
+// accounting for the deco footer and the keybinding strip.
 func bodyHeight(totalHeight int) int {
-	return totalHeight - theme.HeaderHeight - theme.DecoFooterHeight - 1
+	return totalHeight - theme.DecoFooterHeight - 1
 }
 
 // RootModel is the top-level Bubble Tea model. It owns the current view enum
@@ -146,7 +146,10 @@ func (m RootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 		// Global: esc/q from a content view returns to menu.
-		if m.currentView != ViewBanner && m.currentView != ViewMenu && !m.showHelp {
+		// Skip when a sub-model is in its own detail view and should handle Back itself.
+		submodelInDetail := (m.currentView == ViewProjects && m.projects.detail) ||
+			(m.currentView == ViewPosts && m.posts.detail)
+		if m.currentView != ViewBanner && m.currentView != ViewMenu && !m.showHelp && !submodelInDetail {
 			if key.Matches(msg, m.keys.Back) {
 				m.currentView = ViewMenu
 				return m, nil
@@ -204,21 +207,16 @@ func (m RootModel) View() tea.View {
 
 	// Build body (the area above the deco footer).
 	var body string
-	var header string
 	switch {
 	case m.currentView == ViewBanner:
 		body = m.banner.View()
 	case m.showHelp:
-		header = m.headerView()
 		body = m.helpView()
 	case m.cfg.Width < 80:
-		header = m.headerView()
 		body = m.narrowView()
 	case m.cfg.Width >= 120:
-		header = m.headerView()
 		body = m.wideView()
 	default:
-		header = m.headerView()
 		body = m.standardView()
 	}
 
@@ -228,12 +226,7 @@ func (m RootModel) View() tea.View {
 		Foreground(theme.Subtle).
 		Render(m.keys.ShortHelp())
 
-	var content string
-	if header != "" {
-		content = lipgloss.JoinVertical(lipgloss.Left, header, body, m.footer.View(), keyFooter)
-	} else {
-		content = lipgloss.JoinVertical(lipgloss.Left, body, m.footer.View(), keyFooter)
-	}
+	content := lipgloss.JoinVertical(lipgloss.Left, body, m.footer.View(), keyFooter)
 
 	v := tea.NewView(content)
 	v.AltScreen = true
@@ -261,19 +254,6 @@ func (m RootModel) activeContentView() string {
 	}
 }
 
-// headerView renders the full-width bordered title bar shown on all non-banner views.
-func (m RootModel) headerView() string {
-	title := theme.TitleStyle.Render("ronit.sh")
-	sub := theme.SubtleStyle.Render("  --  sophomore at TJHSST, building civic tech")
-	inner := lipgloss.NewStyle().
-		Width(m.cfg.Width - 2).
-		Align(lipgloss.Left).
-		Render(title + sub)
-	return lipgloss.NewStyle().
-		Border(lipgloss.NormalBorder()).
-		BorderForeground(theme.PrimaryDark).
-		Render(inner)
-}
 
 // menuWelcomeView is shown in the content pane when the user is at the main menu.
 func (m RootModel) menuWelcomeView() string {

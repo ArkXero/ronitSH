@@ -29,18 +29,19 @@ const blackhole = `⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀�
 ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠁⠘⢊⠳⠭⡽⣿⠿⠿⠟⠛⠉⠀⠁⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
 ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠈⠀⠁⠈⠐⠀⠘⠀⠈⠀⠈⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀`
 
-// ronitArt is "RONIT" in 4-wide × 5-tall block pixel letters.
-// Total: 5 rows × 24 cols. Centered in the footer's right pane.
-const ronitArt = `███   ██  █  █ ████ ████
-█  █ █  █ ██ █  ██   ██
-███  █  █ █ ██  ██   ██
-██   █  █ █  █  ██   ██
-█  █  ██  █  █ ████  ██ `
+// ronitArt is "RONIT" in ANSI Shadow block letters.
+// Total: 6 rows. Centered in the footer's right pane.
+const ronitArt = `██████╗  ██████╗  ███╗   ██╗ ██╗  ████████╗
+██╔══██╗██╔═══██╗ ████╗  ██║ ██║  ╚══██╔══╝
+██████╔╝██║   ██║ ██╔██╗ ██║ ██║     ██║
+██╔══██╗██║   ██║ ██║╚██╗██║ ██║     ██║
+██║  ██║╚██████╔╝ ██║ ╚████║ ██║     ██║
+╚═╝  ╚═╝ ╚═════╝  ╚═╝  ╚═══╝ ╚═╝     ╚═╝   `
 
 type footerTickMsg struct{}
 
 func footerTick() tea.Cmd {
-	return tea.Tick(120*time.Millisecond, func(time.Time) tea.Msg {
+	return tea.Tick(60*time.Millisecond, func(time.Time) tea.Msg {
 		return footerTickMsg{}
 	})
 }
