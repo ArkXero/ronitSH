@@ -20,5 +20,8 @@ dist/
 *.swp
 *~
 
+.claude/
+
+
 # Go test cache
 /tmp/
