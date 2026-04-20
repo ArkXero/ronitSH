@@ -17,9 +17,13 @@ import (
 	"charm.land/wish/v2/bubbletea"
 	"charm.land/wish/v2/logging"
 	"github.com/charmbracelet/ssh"
+	gossh "golang.org/x/crypto/ssh"
 
 	termfolio "github.com/ArkXero/termfolio"
 	"github.com/ArkXero/termfolio/internal/content"
+	"github.com/ArkXero/termfolio/internal/ratelimit"
+	"github.com/ArkXero/termfolio/internal/server"
+	"github.com/ArkXero/termfolio/internal/storage"
 	"github.com/ArkXero/termfolio/internal/tui"
 )
 
@@ -30,14 +34,18 @@ const (
 	prodPort    = "422"
 	devKeyPath  = ".ssh/id_ed25519"
 	prodKeyPath = "/var/lib/termfolio/id_ed25519"
+	devDBPath   = "./termfolio-dev.db"
+	prodDBPath  = "/var/lib/termfolio/termfolio.db"
 )
 
 func main() {
 	isProd := os.Getenv("RONIT_ENV") == "production"
 
 	host, port, keyPath := devHost, devPort, devKeyPath
+	dbPath := devDBPath
 	if isProd {
 		host, port, keyPath = prodHost, prodPort, prodKeyPath
+		dbPath = prodDBPath
 	}
 
 	if !isProd {
@@ -46,6 +54,18 @@ func main() {
 			os.Exit(1)
 		}
 	}
+
+	// Open SQLite database.
+	db, err := storage.Open(dbPath)
+	if err != nil {
+		log.Error("failed to open database", "error", err)
+		os.Exit(1)
+	}
+	defer db.Close()
+	log.Info("database ready", "path", dbPath)
+
+	// Shared rate limiter: 1 guestbook entry per 10 minutes per IP prefix.
+	rl := ratelimit.New(10 * time.Minute)
 
 	// Load all embedded content once at startup.
 	loader, err := content.NewLoader(termfolio.ContentFS)
@@ -62,8 +82,9 @@ func main() {
 		wish.WithAddress(net.JoinHostPort(host, port)),
 		wish.WithHostKeyPath(keyPath),
 		wish.WithMiddleware(
-			bubbletea.Middleware(makeTeaHandler(loader)),
+			bubbletea.Middleware(makeTeaHandler(loader, db, rl)),
 			activeterm.Middleware(),
+			server.ConnectionLogger(db),
 			logging.Middleware(),
 		),
 	)
@@ -96,17 +117,29 @@ func main() {
 }
 
 // makeTeaHandler returns a Wish bubbletea handler that closes over the shared
-// content loader. A new root model is created per SSH session.
-func makeTeaHandler(loader *content.Loader) bubbletea.Handler {
+// content loader, database, and rate limiter. A new root model is created per
+// SSH session.
+func makeTeaHandler(loader *content.Loader, db *storage.DB, rl *ratelimit.Limiter) bubbletea.Handler {
 	return func(sess ssh.Session) (tea.Model, []tea.ProgramOption) {
 		pty, _, ok := sess.Pty()
 		if !ok {
 			return nil, nil
 		}
+
+		ip := storage.MaskIP(sess.RemoteAddr().String())
+		fp := ""
+		if sess.PublicKey() != nil {
+			fp = storage.TruncateFingerprint(gossh.FingerprintSHA256(sess.PublicKey()))
+		}
+
 		cfg := tui.Config{
 			Term:   pty.Term,
 			Width:  pty.Window.Width,
 			Height: pty.Window.Height,
+			IP:     ip,
+			KeyFP:  fp,
+			RL:     rl,
+			DB:     db,
 		}
 		m := tui.NewRootModel(cfg, loader)
 		return m, nil

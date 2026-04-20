@@ -15,30 +15,52 @@ const asciiLogo = `
 |_|  \___/|_| |_|_|\__|
 `
 
-// BannerModel shows the neofetch-style intro screen.
-// It transitions to the menu on any keypress.
-type BannerModel struct {
-	visitorCount int
-	width        int
-	height       int
+// visitorCountMsg carries the result of the async visitor count query.
+type visitorCountMsg struct {
+	count int
+	err   error
 }
 
-func newBannerModel(w, h int) BannerModel {
-	return BannerModel{
-		visitorCount: 0,
-		width:        w,
-		height:       h,
+// BannerModel shows the neofetch-style intro screen.
+// Transitions to the menu on any keypress.
+type BannerModel struct {
+	visitorCount int
+	loaded       bool
+	width        int
+	height       int
+	db           interface {
+		GetVisitorCount() (int, error)
 	}
 }
 
+func newBannerModel(w, h int, db interface{ GetVisitorCount() (int, error) }) BannerModel {
+	return BannerModel{width: w, height: h, db: db}
+}
+
 func (m BannerModel) Init() tea.Cmd {
-	return nil
+	if m.db == nil {
+		return nil
+	}
+	return m.fetchVisitorCount()
+}
+
+// fetchVisitorCount returns a Cmd that queries the DB off the hot path.
+func (m BannerModel) fetchVisitorCount() tea.Cmd {
+	return func() tea.Msg {
+		n, err := m.db.GetVisitorCount()
+		return visitorCountMsg{count: n, err: err}
+	}
 }
 
 func (m BannerModel) Update(msg tea.Msg) (BannerModel, tea.Cmd) {
-	switch msg.(type) {
+	switch msg := msg.(type) {
+	case visitorCountMsg:
+		if msg.err == nil {
+			m.visitorCount = msg.count
+		}
+		m.loaded = true
+		return m, nil
 	case tea.KeyMsg:
-		// Any key transitions to the menu.
 		return m, navigateTo(ViewMenu)
 	}
 	return m, nil
@@ -49,10 +71,15 @@ func (m BannerModel) View() string {
 
 	kvStyle := lipgloss.NewStyle().PaddingLeft(2)
 	labelStyle := theme.SubtleStyle.Copy().Width(10)
-	valueStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("default"))
+	valueStyle := lipgloss.NewStyle()
 
 	kv := func(label, value string) string {
 		return labelStyle.Render(label+":") + valueStyle.Render(value) + "\n"
+	}
+
+	visitorLine := fmt.Sprintf("visitor #%d", m.visitorCount+1)
+	if !m.loaded {
+		visitorLine = "visitor #..."
 	}
 
 	info := kvStyle.Render(
@@ -62,11 +89,10 @@ func (m BannerModel) View() string {
 			kv("stack", "Go, TypeScript, Next.js") +
 			kv("location", "Northern Virginia") +
 			"\n" +
-			theme.AccentStyle.Render(fmt.Sprintf("  visitor #%d", m.visitorCount+1)) + "\n",
+			theme.AccentStyle.Render("  "+visitorLine) + "\n",
 	)
 
 	banner := lipgloss.JoinHorizontal(lipgloss.Top, logo, info)
-
 	prompt := theme.SubtleStyle.Render("\n  press any key to enter")
 
 	return lipgloss.Place(

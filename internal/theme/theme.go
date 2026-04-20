@@ -88,3 +88,12 @@ const SidebarWidth = 25
 
 // PreviewWidth is the column count of the right preview pane in wide mode.
 const PreviewWidth = 30
+
+// DecoFooterHeight is the number of terminal rows consumed by the persistent
+// animated footer (blackhole art + RONIT name). The 1-row keybinding strip is
+// additional and handled separately.
+const DecoFooterHeight = 16
+
+// HeaderHeight is the number of terminal rows consumed by the persistent
+// bordered top header bar (title + subtitle, 1 border top + 1 content + 1 border bottom).
+const HeaderHeight = 3
