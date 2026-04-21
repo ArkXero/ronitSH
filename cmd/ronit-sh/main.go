@@ -31,7 +31,7 @@ const (
 	devHost     = "127.0.0.1"
 	devPort     = "23234"
 	prodHost    = "127.0.0.1"
-	prodPort    = "422"
+	prodPort    = "2222"
 	devKeyPath  = ".ssh/id_ed25519"
 	prodKeyPath = "/var/lib/termfolio/id_ed25519"
 	devDBPath   = "./termfolio-dev.db"
