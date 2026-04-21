@@ -1,17 +1,14 @@
 ---
 title: Now
-date: 2026-04-19
+date: whatever date it is for you
 ---
 
-# Now
-
 *Last updated: April 2026*
-
-> Edit this file to reflect what you are working on this month.
 
 ## Currently
 
 - Building this portfolio (termfolio / ronit.sh)
 - Civic Cycle -- civic tech web app
-- Botball 2026 robotics competition
-- AP Seminar PT2
+- Preparing for AP exams
+- Preparing for Botball Robotics Worlds 2026
+- Working on a few personal projects (more to come soon!)

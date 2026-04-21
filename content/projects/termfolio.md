@@ -9,7 +9,7 @@ stack:
   - Lip Gloss v2
   - SQLite
 links:
-  github: https://github.com/ArkXero/termfolio
+  github: https://github.com/ArkXero/ronitSH
 ---
 
 # ronit.sh
