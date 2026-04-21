@@ -30,7 +30,7 @@ import (
 const (
 	devHost     = "127.0.0.1"
 	devPort     = "23234"
-	prodHost    = "0.0.0.0"
+	prodHost    = "127.0.0.1"
 	prodPort    = "422"
 	devKeyPath  = ".ssh/id_ed25519"
 	prodKeyPath = "/var/lib/termfolio/id_ed25519"
